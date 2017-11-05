@@ -1,11 +1,10 @@
-#!/usr/bin/env node
-
+//      
 const R = require('ramda')
 
 
 // Helpers
 // ordinal :: Int -> String
-const ordinal = (number) => {
+const ordinal = (number        )        => {
   switch (number % 10) {
     case 1:
       return `${number}st`
@@ -18,12 +17,23 @@ const ordinal = (number) => {
   }
 }
 
-const padLeft = (thing, desiredLength, character)  => {
-  return thing.length === desiredLength ? thing : padLeft(`${character}${thing}`, desiredLength, character)
+const padLeft = (string        , desiredLength        , character)         => {
+  if(string.length === Math.floor(desiredLength)) { // Math.floor here to force an integer (string length would never equal 4.2 and we'd recurse forever!)
+    return string;
+  }
+  
+  // pad and go again
+  return padLeft(`${character}${string}`, desiredLength, character)
 }
 
-const padRight = (thing, desiredLength, character)  => {
-  return thing.length === desiredLength ? thing : padRight(`${thing}${character}`, desiredLength, character)
+const padRight = (string       , desiredLength       , character       )         => {
+
+  if(string.length === Math.floor(desiredLength)) { // Math.floor here to force an integer (string length would never equal 4.2 and we'd recurse forever!)
+    return string;
+  }
+
+  // pad and go again
+  return padRight(`${string}${character}`, desiredLength, character)
 }
 
 
@@ -43,7 +53,7 @@ const padRight = (thing, desiredLength, character)  => {
 
 
   // runPlay :: () -> Int (yards gained)
-  const runPlay = () => {
+  const runPlay = ()        => {
     const { yardsGainedPerPlay, secondsPerPlay } = Settings // ! Impure
     const isPassComplete = !(Math.floor(Math.random() * 3) === 0) // change to 2/3 chance
     const message = isPassComplete ? `Complete for ${yardsGainedPerPlay} yards` : 'Incomplete pass' 
@@ -53,7 +63,7 @@ const padRight = (thing, desiredLength, character)  => {
   }
 
 
-const isTurnoverOnDowns = (yardGains, down = 1, distance = 10, debug = false) => {
+const isTurnoverOnDowns = (yardGains              , down        = 1, distance        = 10, debug         = false)         => {
   const gain = R.head(yardGains)
   const rest = R.tail(yardGains)
   debug && console.log({gain, rest, down, distance })
@@ -79,19 +89,20 @@ const isTurnoverOnDowns = (yardGains, down = 1, distance = 10, debug = false) =>
   }
 }
 
-const updateDriveSummary = (eventName, plays) => {
+const updateDriveSummary = (eventName        , plays               )      => {
   driveSummary.push(
     `${padLeft(`${driveSummary.length + 1}`, 3, ' ')}: [${DIRTY.getFormattedClock()}] ${DIRTY.getOffense()} - ${padRight(`${eventName} (${plays.length} plays)`, 30, ' ')} ${DIRTY.getFormattedScore()}`
   )
 }
 
-const isTouchdown = (yardGains, startingFieldPosition) =>  {
+// isTouchdown :: [Int] -> Int -> Boolean
+const isTouchdown = (yardGains              , startingFieldPosition       )         =>  {
   // once the yardgains + the startingFieldPosition are more than 100 yards, it must be a touchdon
 
   return R.sum(yardGains) + startingFieldPosition >= 100
 }
 
-const continueDrive = (plays = []) => {
+const continueDrive = (plays               = []) => {
   if (plays.length === 0) {
     IO.printGameState()
   }
@@ -119,7 +130,7 @@ const continueDrive = (plays = []) => {
   const play = runPlay()
   plays.push(play)
   AllPlays.push(play)
-  continueDrive(plays)
+  return continueDrive(plays)
 }
 
 const Settings = {
@@ -137,10 +148,7 @@ const GameState = {
   clock: 3600 // seconds
 }
 
-const endOfDrive = (plays) => {
-  if(DIRTY.getClock() <= 0) {
-    return endOfGame()
-  }
+const endOfDrive = ()      => {
   DIRTY.changePossession()
   continueDrive()
 }
