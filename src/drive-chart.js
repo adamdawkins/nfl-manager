@@ -2,7 +2,6 @@
 const R = require('ramda')
 import { formatLOS, formatTimestamp } from './format'
 
-// Los Angeles Rams at 15:00 3rd Quarter
 // 5-B.Pinion kicks 68 yards from SF 35 to LA -3. 10-P.Cooper to LA 25 for 28 yards (31-R.Mostert).
   const startingGameState = {
     teams: ["LA", "SF"],
@@ -58,8 +57,31 @@ events.push({
 })
 
 
-const printDriveChart = (plays:Array<Object>):void => { 
+// A full play-by-play drive chart as per (nfl.com)[http://bit.ly/2heTGXY]
+const printDriveChart = (initialState: Object, plays: Array<Object>):void => { 
+  printDriveHeader(R.head(plays))
   R.map(printPlay, plays)
+  printDriveSummary(initialState, plays)
+}
+
+  // e.g. "Los Angeles Rams at 15:00 3rd Quarter"
+const printDriveHeader = (play: Object): void => {
+  console.log(`** ${play.offense} at ${formatTimestamp(play.timestamp)} **`)
+}
+
+// e.g. LA 7 SF 7 Plays: 14, Possession: 6:31
+const printDriveSummary = (gameState: Object, plays: Array<Object>): void => {
+  // TODO: score needs to include any scores in this drive, 
+  const { teams, score } = gameState;
+  const displayScore = `${teams[0]} ${score[0]} ${teams[1]} ${score[1]}\t`
+  const numberOfPlays = `Plays: ${plays.length}`
+  const possessionInSeconds = R.sum(R.map(R.prop('duration'), plays))
+  const timeOfPossession = `Possession: ${formatTimestamp(possessionInSeconds)}`
+
+  const summary = R.join(' ', [displayScore, numberOfPlays, timeOfPossession])
+
+
+  console.log(summary)
 }
 
 const printPlay = (play: Object): void =>  {
@@ -79,7 +101,4 @@ const printPlay = (play: Object): void =>  {
   console.log(`${down}-${distance}-${los}\t(${ clock }) ${gain === 0 ? 'Incomplete' : `Pass for ${gain} yards.`}`)
 }
 
-
-
-
-printDriveChart(events)
+printDriveChart(startingGameState, events)
