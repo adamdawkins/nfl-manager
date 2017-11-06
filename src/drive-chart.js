@@ -58,15 +58,16 @@ events.push({
 
 
 // A full play-by-play drive chart as per (nfl.com)[http://bit.ly/2heTGXY]
-const printDriveChart = (initialState: Object, plays: Array<Object>):void => { 
-  printDriveHeader(R.head(plays))
+const printDriveChart = (state: Object, plays: Array<Object>):void => { 
+  printDriveHeader(state)
   R.map(printPlay, plays)
-  printDriveSummary(initialState, plays)
+  printDriveSummary(state, plays)
 }
 
   // e.g. "Los Angeles Rams at 15:00 3rd Quarter"
-const printDriveHeader = (play: Object): void => {
-  console.log(`** ${play.offense} at ${formatTimestamp(play.timestamp)} **`)
+const printDriveHeader = (state: Object): void => {
+  console.log({state})
+  console.log(`** ${state.offense} at ${formatTimestamp(state.clock)} **`)
 }
 
 // e.g. LA 7 SF 7 Plays: 14, Possession: 6:31
@@ -101,4 +102,8 @@ const printPlay = (play: Object): void =>  {
   console.log(`${down}-${distance}-${los}\t(${ clock }) ${gain === 0 ? 'Incomplete' : `Pass for ${gain} yards.`}`)
 }
 
-printDriveChart(startingGameState, events)
+export {
+  printDriveHeader,
+  printPlay,
+  printDriveSummary,
+}
