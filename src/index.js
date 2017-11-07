@@ -1,8 +1,5 @@
-// // @flow
 import assert from 'assert'
 
-import { startDrive } from './drive'
-import { printDriveHeader } from './drive-chart'
 
 const IO = {
   printDriveHeader,
