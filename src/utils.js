@@ -15,13 +15,14 @@ const ordinal = (number: number):string => {
 }
 
 const padLeft = (string: string, desiredLength: number, character:string):string  => {
-  if(string.length === Math.floor(desiredLength)) { // Math.floor here to force an integer (string length would never equal 4.2 and we'd recurse forever!)
+  if(string.length >= Math.floor(desiredLength)) { // Math.floor here to force an integer (string length would never equal 4.2 and we'd recurse forever!)
     return string;
   }
   
   // pad and go again
   return padLeft(`${character}${string}`, desiredLength, character)
 }
+
 const padRight = (string:string, desiredLength:number, character:string):string  => {
 
   if(string.length === Math.floor(desiredLength)) { // Math.floor here to force an integer (string length would never equal 4.2 and we'd recurse forever!)
