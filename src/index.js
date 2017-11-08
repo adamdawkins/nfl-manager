@@ -3,8 +3,12 @@ import R, {
   add,
   assoc,
   evolve,
+  either,
+  equals,
   or,
+  both,
   T,
+  F,
   propEq,
   reduce,
   map,
@@ -21,6 +25,12 @@ import R, {
 import sleep from 'system-sleep'
 
 import { formatTime } from './format'
+
+const trace = R.curry((tag, x) => {
+  console.log(tag, x);
+  return x;
+});
+
 const gameLoop = (game: Game):void => {
 
   if(endOfGame(game)) return console.log("THAT'S THE END")
@@ -39,10 +49,15 @@ const runNextPlay = identity
 
 const render = (game:Game):void => {
   const time = formatTime(game.clock)
+  const offense = currentOffense(game)
   const eventText = propEq('event', 'TOUCHDOWN', game) ? '*** TOUCHDOWN ***' : 'new play'
-  const score = prop('score', game)
-  console.log({score})
-  write(`(${time})\t ${eventText}\t ${R.nth(0, score)}-${R.nth(1, score)}`)
+  const { 
+    score,
+    teams
+  } = game
+
+  const abbrs = map(prop('abbr'), teams)
+  write(`(${time})\t [${R.nth(offense, abbrs)}]${eventText}\t ${R.nth(0, abbrs)} ${R.nth(0, score)}-${R.nth(1, score)} ${R.nth (1, abbrs)}`)
 }
 
 /*
@@ -53,6 +68,7 @@ const totalGain = (plays: Array<Object>):number => {
   return reduce(add, 0, map(prop('gain'), plays))
 }
 
+const currentOffense = path(['currentPossession', 'offense'])
 const currentDriveStartLine = (game: Game): number => {
   return path(['currentPossession', 'start'], game)
 }
@@ -62,28 +78,24 @@ const playsInCurrentDrive = (game: Game): Array<Object> => {
 }
 
 const LOS = (game: Game): number => {
-
   return add(
     currentDriveStartLine(game), 
     totalGain(playsInCurrentDrive(game))
   )
 }
 
-const isTouchdown = (game: Game):boolean =>  {
-  return  lte(100, LOS(game))
-}
-
+const isTouchdown = compose(lte(100), LOS)
 
 /*
  * Game world setup 
  * ========
- * [] run plays until the end of the game
- * [] Turnover on Downs
- * [] Touchdowns
- * [] Game Clock vs real life time
- * [] Field Position on Change of Possession
- * [] Quarters (?)
- * [] Drive Log
+ * [/] run plays until the end of the game
+ * [ ] Turnover on Downs
+ * [x] Touchdowns
+ * [ ] Game Clock vs real life time
+ * [ ] Field Position on Change of Possession
+ * [ ] Quarters (?)
+ * [ ] Drive Log
  * ...
  * Monads and stuff for FP?
  * ...
@@ -101,86 +113,136 @@ const endOfGame = (game: Game): boolean => {
   return game.clock <= 0
 }
 
+const isFourthDown = compose(
+  R.equals(4),
+  prop('down')
+)
+
+const previousPlay = R.compose(
+  R.head,
+  path(['currentPossession', 'plays'])
+)
+const previousGain = compose(prop('gain'), previousPlay)
+ 
+const isShortOfLineToGain = (game: Game):boolean => {
+  return R.gte(
+    prop('distance', game),
+    previousGain(game)
+  )
+}
+
+const isTurnoverOnDowns = both(
+  isFourthDown, 
+  isShortOfLineToGain
+)
+
+
 const captureEvent = cond([
   [isTouchdown,          assoc('event', 'TOUCHDOWN')        ],
-  // [isTurnoverOnDowns, assoc('event', 'TURNOVER_ON_DOWNS')],
-  [T,                  assoc('event', undefined)] // T :: x => True
+  [isTurnoverOnDowns,    assoc('event', 'TURNOVER_ON_DOWNS')],
+  [T,                    assoc('event', undefined)] // T :: x => True
 ])
 
 const decreaseClock = evolve({clock: add(-600)})
 
-const maybeChangePossession = identity
+const shouldChangePossession = either(isTouchdown, isTurnoverOnDowns)
+
+const changePossession = evolve({
+  down: R.always(1),
+  distance: R.always(10), // todo
+  currentPossession: {
+    plays: R.always([]),
+    offense: R.ifElse(
+      compose(
+        equals(0),
+        currentOffense,
+      ),
+      R.always(1),
+      R.always(0),
+    )
+  }
+})
+
+const maybeChangePossession = when(
+  shouldChangePossession,
+  changePossession
+)
 
 
 const write = console.log
 
 type Possession = {
-  plays: Array<Object>,
-  start: number,
-  offense: number
+plays: Array<Object>,
+start: number,
+offense: number
 }
 
 type Game = {
-  clock: number,                                // time remaining in seconds
-  currentPossession: Possession,
-  event?: string,
-  teams: Array<Team>,
-  score: Array<number>
+clock: number,                                // time remaining in seconds
+currentPossession: Possession,
+down: number,
+distance: number,
+event?: string,
+teams: Array<Team>,
+score: Array<number>
 }
 
 type Team = {
-  name: string
+name: string,
+abbr: string
 }
 
 const plays = [
-  {
-    gain: 10
-  },
-  {
-    gain: 5
-  },
-  {
-    gain: 2
-  },
-  {
-    gain: 3
-  }
+{
+  gain: 10
+},
+{
+  gain: 5
+},
+{
+  gain: 2
+},
+{
+  gain: 3
+}
 ]
 
 const game = {
   clock: 60 * 60,                               // 1 hour in seconds
+  down: 1,
+  distance: 10,
   currentPossession: {
     plays,
-    start: 80,
+    start: 50,
     offense: 1,
   },
-  teams: [{name: 'Dallas Cowboys'}, {name: 'Philadelphia Eagles'}],
+  teams: [{abbr: 'DAL', name: 'Dallas Cowboys'}, {abbr: 'PHI', name: 'Philadelphia Eagles'}],
   score: [0, 0],
-  event: 'TOUCHDOWN',
 }
-const currentOffense = path(['currentPossession', 'offense'])
 
 const scoreTouchdown = (game) => {
-  const offenseIndex = currentOffense(game)
-  const scoreLens = R.lensProp('score')
-  const score = R.adjust(R.add(7), offenseIndex, R.view(scoreLens, game))
+const offenseIndex = currentOffense(game)
+const scoreLens = R.lensProp('score')
+const score = R.adjust(R.add(7), offenseIndex, R.view(scoreLens, game))
 
-  return R.set(scoreLens, score, game)
+return R.set(scoreLens, score, game)
 }
 
 const updateScore = when(
-  propEq('event', 'TOUCHDOWN'),
-  scoreTouchdown
+propEq('event', 'TOUCHDOWN'),
+scoreTouchdown
 )
+
+const updateDownAndDistance = identity
 
 const update = pipe(
-  decreaseClock,
-  captureEvent,
-  updateScore,
-  maybeChangePossession,
-  runNextPlay,
+decreaseClock,
+captureEvent,
+updateScore,
+maybeChangePossession,
+updateDownAndDistance,
+runNextPlay,
 )
 
-// start(game)
 
-console.log(scoreTouchdown(game))
+start(game)
