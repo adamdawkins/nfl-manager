@@ -12,7 +12,7 @@ gulp.task('build', () =>
   .pipe(gulp.dest('build'))
 )
 gulp.task('start', (cb) => {
-  exec('node ./build/index.js', function (err, stdout, stderr) {
+  exec('yarn run start-only', function (err, stdout, stderr) {
     console.log(stdout);
     console.log(stderr);
     cb(err);
@@ -20,7 +20,7 @@ gulp.task('start', (cb) => {
 
 })
 gulp.task('watch', () => {
-  gulp.watch('src/**', ['build', 'start'])
+  gulp.watch('src/**/*.js', ['build', 'start'])
 })
 
 
