@@ -9,6 +9,7 @@ import R, {
   both,
   T,
   F,
+  nth,
   propEq,
   reduce,
   map,
@@ -31,6 +32,8 @@ const trace = R.curry((tag, x) => {
   return x;
 });
 
+const rev = R.curry((v, fn) => fn(v))
+
 const gameLoop = (game: Game):void => {
 
   if(endOfGame(game)) return console.log("THAT'S THE END")
@@ -47,17 +50,48 @@ const start = gameLoop
 
 const runNextPlay = identity
 
-const render = (game:Game):void => {
-  const time = formatTime(game.clock)
-  const offense = currentOffense(game)
-  const eventText = propEq('event', 'TOUCHDOWN', game) ? '*** TOUCHDOWN ***' : 'new play'
-  const { 
-    score,
-    teams
-  } = game
+  // const time = formatTime(game.clock)
+  // const offense = currentOffense(game)
+  // const eventText = propEq('event', 'TOUCHDOWN', game) ? '*** TOUCHDOWN ***' : 'new play'
+  // const { 
+  //   score,
+  //   teams
+  // } = game
 
-  const abbrs = map(prop('abbr'), teams)
-  write(`(${time})\t [${R.nth(offense, abbrs)}]${eventText}\t ${R.nth(0, abbrs)} ${R.nth(0, score)}-${R.nth(1, score)} ${R.nth (1, abbrs)}`)
+  // const abbrs = map(prop('abbr'), teams)
+  // write(`(${time})\t [${R.nth(offense, abbrs)}]${eventText}\t ${R.nth(0, abbrs)} ${R.nth(0, score)}-${R.nth(1, score)} ${R.nth (1, abbrs)}`)
+
+
+const formatDownDistanceAndLOS = (game) => {
+  const down = prop('down', game)
+  const distance = prop('distance', game)
+  return `${down}-${distance}`
+}
+
+const formatClock = compose(formatTime, prop('clock'))
+
+const formatPlay = (game:Game):string => {
+  return `Pass for ${previousGain(game)} yards`
+}
+
+const formatScore = (game:Game): string => {
+  const teams = map(prop('abbr'), prop('teams', game))
+  const score = prop('score', game)
+
+  return `${nth(0, teams)} ${nth(0, score)} - ${nth(1, score)} ${nth(1, teams)}`
+}
+
+    // 1-10-LA 25    (14:54) 30-T.Gurley left end to LA 25 for no gain (94-S.Thomas).
+
+const write = console.log
+
+const render = (game) => {
+  const downAndDistance = formatDownDistanceAndLOS
+  const time = formatClock
+  const play = formatPlay
+  const score = formatScore
+
+  return write(R.join('\t', R.ap([downAndDistance, time, play, score], [game])))
 }
 
 /*
@@ -169,7 +203,6 @@ const maybeChangePossession = when(
 )
 
 
-const write = console.log
 
 type Possession = {
 plays: Array<Object>,
@@ -236,12 +269,12 @@ scoreTouchdown
 const updateDownAndDistance = identity
 
 const update = pipe(
-decreaseClock,
-captureEvent,
-updateScore,
-maybeChangePossession,
-updateDownAndDistance,
-runNextPlay,
+  decreaseClock,
+  captureEvent,
+  updateScore,
+  maybeChangePossession,
+  updateDownAndDistance,
+  runNextPlay,
 )
 
 
